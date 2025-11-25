@@ -30,7 +30,7 @@ jobs:
       with:
         host: ${{ secrets.VPC_HOST }}
         username: ${{ secrets.VPC_USER }}
-        key: ${{ secrets.VPC_SSH_KEY }}
+        password: ${{ secrets.VPC_PASSWORD }}
         script: |
           # Create project directory if not exists
           mkdir -p ~/earncash-project
