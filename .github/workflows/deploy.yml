@@ -15,6 +15,9 @@ jobs:
         username: ${{ secrets.VPS_USER }}
         password: ${{ secrets.VPS_PASSWORD }}
         script: |
+          # Add common paths to PATH
+          export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
           # Create project directory
           mkdir -p /www/wwwroot/earncash
           cd /www/wwwroot/earncash
@@ -27,11 +30,20 @@ jobs:
             git pull origin main
           fi
 
+          # Check if docker is installed
+          if ! command -v docker &> /dev/null; then
+              echo "Error: docker command not found."
+              echo "Current PATH: $PATH"
+              exit 1
+          fi
+
           # Start Containers
           if command -v docker-compose &> /dev/null; then
+              echo "Using docker-compose..."
               docker-compose down
               docker-compose up -d --build
           else
+              echo "Using docker compose..."
               docker compose down
               docker compose up -d --build
           fi
