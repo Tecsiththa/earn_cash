@@ -1,0 +1,114 @@
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'customer') DEFAULT 'customer',
+    balance DECIMAL(10, 2) DEFAULT 0.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+
+INSERT INTO users (username, email, password, role, balance) VALUES 
+('admin', 'admin@earncash.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 0.00);
+------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS daily_earnings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    date DATE NOT NULL,
+    total_earned DECIMAL(10, 2) DEFAULT 0.00,
+    ads_viewed INT DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_date (user_id, date)
+);
+------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS advertisements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    url VARCHAR(500) NOT NULL,
+    image_url VARCHAR(500),
+    reward DECIMAL(10, 2) DEFAULT 0.05,
+    duration INT DEFAULT 10,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE advertisements 
+ADD COLUMN video_url VARCHAR(500) AFTER image_url,
+ADD COLUMN minimum_watch_time INT DEFAULT 30;
+
+NSERT INTO advertisements (title, description, url, video_url, reward, duration, minimum_watch_time, is_active) VALUES 
+('Big Buck Bunny', 'Watch this amazing animated short film', 'https://example.com/bigbuckbunny', 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', 0.05, 30, 30, TRUE),
+('Elephants Dream', 'Experience this creative animation', 'https://example.com/elephantsdream', 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', 0.05, 30, 30, TRUE),
+('For Bigger Blazes', 'Watch this exciting advertisement', 'https://example.com/forbigger', 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', 0.05, 30, 30, TRUE);
+------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ad_views (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    ad_id INT NOT NULL,
+    viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reward_earned DECIMAL(10, 2) DEFAULT 0.05,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (ad_id) REFERENCES advertisements(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_ad (user_id, ad_id)
+);
+------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE withdrawals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_method VARCHAR(50),
+    payment_details VARCHAR(255),
+    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+------------------------------------------------------------------------------------------------------------------------------------------------------
+//Add missing columns
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS last_login TIMESTAMP NULL AFTER balance;
+
+ALTER TABLE withdrawals 
+ADD COLUMN IF NOT EXISTS processed_by INT NULL AFTER processed_at,
+ADD FOREIGN KEY IF NOT EXISTS (processed_by) REFERENCES users(id) ON DELETE SET NULL;
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS admin_activity_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NOT NULL,
+    action_type VARCHAR(50) NOT NULL,
+    action_description TEXT,
+    target_id INT,
+    target_type VARCHAR(50),
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
+);
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS system_statistics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    stat_date DATE NOT NULL UNIQUE,
+    total_users INT DEFAULT 0,
+    new_users INT DEFAULT 0,
+    total_ads INT DEFAULT 0,
+    total_views INT DEFAULT 0,
+    total_revenue DECIMAL(10, 2) DEFAULT 0.00,
+    total_withdrawals DECIMAL(10, 2) DEFAULT 0.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS admin_notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    type ENUM('withdrawal', 'user', 'system', 'ad') DEFAULT 'system',
+    is_read BOOLEAN DEFAULT FALSE,
+    link VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-----------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,200 @@
+name: Deploy to VPC
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: ${{ secrets.DOCKER_USERNAME }}/earncash-app:latest
+
+    - name: Deploy to VPC via SSH
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.VPC_HOST }}
+        username: ${{ secrets.VPC_USER }}
+        key: ${{ secrets.VPC_SSH_KEY }}
+        script: |
+          # Create project directory if not exists
+          mkdir -p ~/earncash-project
+          cd ~/earncash-project
+
+          # Create docker-compose.yml content
+          cat <<EOF > docker-compose.yml
+          version: '3.8'
+          services:
+            app:
+              image: ${{ secrets.DOCKER_USERNAME }}/earncash-app:latest
+              ports:
+                - "8080:80"
+              environment:
+                - DB_HOST=db
+                - DB_USER=root
+                - DB_PASS=${{ secrets.DB_ROOT_PASSWORD }}
+                - DB_NAME=earncash_db
+              depends_on:
+                - db
+              networks:
+                - earncash-network
+              restart: always
+
+            db:
+              image: mysql:8.0
+              command: --default-authentication-plugin=mysql_native_password
+              environment:
+                - MYSQL_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}
+                - MYSQL_DATABASE=earncash_db
+              volumes:
+                - db_data:/var/lib/mysql
+                - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+              networks:
+                - earncash-network
+              restart: always
+
+          networks:
+            earncash-network:
+              driver: bridge
+
+          volumes:
+            db_data:
+          EOF
+
+          # Create init.sql content
+          cat <<EOF > init.sql
+          -- Create Users Table
+          CREATE TABLE IF NOT EXISTS users (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              username VARCHAR(50) UNIQUE NOT NULL,
+              email VARCHAR(100) UNIQUE NOT NULL,
+              password VARCHAR(255) NOT NULL,
+              role ENUM('admin', 'customer') DEFAULT 'customer',
+              balance DECIMAL(10, 2) DEFAULT 0.00,
+              last_login TIMESTAMP NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          );
+
+          -- Insert Default Admin
+          INSERT IGNORE INTO users (username, email, password, role, balance) VALUES
+          ('admin', 'admin@earncash.com', '\$2y\$10\$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 0.00);
+
+          -- Create Daily Earnings Table
+          CREATE TABLE IF NOT EXISTS daily_earnings (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              user_id INT NOT NULL,
+              date DATE NOT NULL,
+              total_earned DECIMAL(10, 2) DEFAULT 0.00,
+              ads_viewed INT DEFAULT 0,
+              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+              UNIQUE KEY unique_user_date (user_id, date)
+          );
+
+          -- Create Advertisements Table
+          CREATE TABLE IF NOT EXISTS advertisements (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              title VARCHAR(200) NOT NULL,
+              description TEXT,
+              url VARCHAR(500) NOT NULL,
+              image_url VARCHAR(500),
+              video_url VARCHAR(500),
+              reward DECIMAL(10, 2) DEFAULT 0.05,
+              duration INT DEFAULT 10,
+              minimum_watch_time INT DEFAULT 30,
+              is_active BOOLEAN DEFAULT TRUE,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          );
+
+          -- Insert Sample Ads
+          INSERT IGNORE INTO advertisements (title, description, url, video_url, reward, duration, minimum_watch_time, is_active) VALUES
+          ('Big Buck Bunny', 'Watch this amazing animated short film', 'https://example.com/bigbuckbunny', 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', 0.05, 30, 30, TRUE),
+          ('Elephants Dream', 'Experience this creative animation', 'https://example.com/elephantsdream', 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', 0.05, 30, 30, TRUE),
+          ('For Bigger Blazes', 'Watch this exciting advertisement', 'https://example.com/forbigger', 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', 0.05, 30, 30, TRUE);
+
+          -- Create Ad Views Table
+          CREATE TABLE IF NOT EXISTS ad_views (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              user_id INT NOT NULL,
+              ad_id INT NOT NULL,
+              viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              reward_earned DECIMAL(10, 2) DEFAULT 0.05,
+              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+              FOREIGN KEY (ad_id) REFERENCES advertisements(id) ON DELETE CASCADE,
+              UNIQUE KEY unique_user_ad (user_id, ad_id)
+          );
+
+          -- Create Withdrawals Table
+          CREATE TABLE IF NOT EXISTS withdrawals (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              user_id INT NOT NULL,
+              amount DECIMAL(10, 2) NOT NULL,
+              payment_method VARCHAR(50),
+              payment_details VARCHAR(255),
+              status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+              requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              processed_at TIMESTAMP NULL,
+              processed_by INT NULL,
+              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+              FOREIGN KEY (processed_by) REFERENCES users(id) ON DELETE SET NULL
+          );
+
+          -- Create Admin Activity Log Table
+          CREATE TABLE IF NOT EXISTS admin_activity_log (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              admin_id INT NOT NULL,
+              action_type VARCHAR(50) NOT NULL,
+              action_description TEXT,
+              target_id INT,
+              target_type VARCHAR(50),
+              ip_address VARCHAR(45),
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
+          );
+
+          -- Create System Statistics Table
+          CREATE TABLE IF NOT EXISTS system_statistics (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              stat_date DATE NOT NULL UNIQUE,
+              total_users INT DEFAULT 0,
+              new_users INT DEFAULT 0,
+              total_ads INT DEFAULT 0,
+              total_views INT DEFAULT 0,
+              total_revenue DECIMAL(10, 2) DEFAULT 0.00,
+              total_withdrawals DECIMAL(10, 2) DEFAULT 0.00,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Create Admin Notifications Table
+          CREATE TABLE IF NOT EXISTS admin_notifications (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              title VARCHAR(200) NOT NULL,
+              message TEXT NOT NULL,
+              type ENUM('withdrawal', 'user', 'system', 'ad') DEFAULT 'system',
+              is_read BOOLEAN DEFAULT FALSE,
+              link VARCHAR(255),
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+          EOF
+
+          # Pull latest images
+          docker-compose pull
+
+          # Restart containers
+          docker-compose up -d --remove-orphans

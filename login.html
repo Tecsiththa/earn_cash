@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - EarnCash</title>
+    <link rel="stylesheet" href="assets/css/signupLogin.css">
+    <link rel="stylesheet" href="assets/css/index.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1>EarnCash</h1>
+            <div class="nav-links">
+                <a href="index.html">HOME</a>
+                <a href="about.html">ABOUT US</a>
+                <a href="contact.html">CONTACT US</a>
+            </div>
+        </div>
+    </nav>
+    
+    <main class="main-content">
+        <div class="auth-container">
+            <div class="auth-box">
+                <h2>Welcome Back!</h2>
+                <p class="auth-subtitle">Login to continue earning!</p>
+                
+                <form id="loginForm" action="login_process.php" method="POST">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    
+                    <div id="message" class="message"></div>
+                    
+                    <button type="submit" class="btn btn-primary btn-full">Login</button>
+                </form>
+                
+                <p class="auth-link">Don't have an account? <a href="signup.html">Sign up here</a></p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>💰 EarnCash</h3>
+                    <p>Earn money by watching advertisements. Simple, fast, and reliable.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="about.html">About Us</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="contact.html">Help Center</a></li>
+                        <li><a href="about.html">Terms of Service</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="contact.html">FAQ</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+        </div>
+    </footer>
+    
+    <script src="assets/js/login.js"></script>
+</body>
+</html>
