@@ -145,6 +145,7 @@ $ads_remaining = 10 - $ads_today;
                     <span>👨‍💼<?php echo htmlspecialchars($user['username']); ?></span>
                 </div>
                 <button class="logout-btn" onclick="window.location.href='index.html'">HOME</button>
+                <button class="logout-btn" onclick="window.location.href='customer_profile.php'">User ProFile</button>
             </div>
         </div>
     </header>
