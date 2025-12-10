@@ -8,9 +8,9 @@ services:
       - "8080:80"
     environment:
       - DB_HOST=db
-      - DB_USER=root
-      - DB_PASS=rootpassword
-      - DB_NAME=earncash_db
+      - DB_USER=${DB_USER:-root}
+      - DB_PASS=${DB_ROOT_PASSWORD}
+      - DB_NAME=${DB_NAME:-earncash_db}
     depends_on:
       - db
     networks:
@@ -21,8 +21,8 @@ services:
     restart: always
     command: --default-authentication-plugin=mysql_native_password
     environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=earncash_db
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME:-earncash_db}
     volumes:
       - db_data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql

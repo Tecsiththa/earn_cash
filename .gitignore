@@ -4,3 +4,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Environment variables - NEVER commit!
+.env
