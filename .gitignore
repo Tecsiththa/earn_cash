@@ -7,3 +7,6 @@ Thumbs.db
 
 # Environment variables - NEVER commit!
 .env
+
+# Password file - NEVER commit!
+pass.txt
