@@ -44,13 +44,20 @@ jobs:
               exit 1
           fi
 
+          # Stop and remove existing containers forcefully
+          echo "Stopping existing containers..."
+          docker-compose down --remove-orphans 2>/dev/null || true
+          docker compose down --remove-orphans 2>/dev/null || true
+          
+          # Remove any conflicting containers
+          docker rm -f earncash_app_1 earncash_db_1 2>/dev/null || true
+          docker rm -f earncash-app-1 earncash-db-1 2>/dev/null || true
+
           # Start Containers
           if command -v docker-compose &> /dev/null; then
               echo "Using docker-compose..."
-              docker-compose down
-              docker-compose up -d --build
+              docker-compose up -d --build --force-recreate
           else
               echo "Using docker compose..."
-              docker compose down
-              docker compose up -d --build
+              docker compose up -d --build --force-recreate
           fi
