@@ -114,9 +114,14 @@ $conn->close();
 
     
    
+        <!-- User Details Modal -->
+        <div id="userModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+            <div class="modal-content" style="background-color: #fff; margin: 5% auto; padding: 20px; border-radius: 6px; max-width: 900px; position: relative;">
+                <button onclick="closeUserModal()" style="position:absolute; top:10px; right:10px; border:none; background:transparent; font-size:24px; cursor:pointer;">&times;</button>
+                <div id="userModalBody"></div>
+            </div>
+        </div>
 
-
-
-<script src="assets/js/admin_user_management.js"></script>
+        <script src="assets/js/admin_user_management.js"></script>
 </body>
 </html>
