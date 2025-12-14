@@ -1,20 +1,27 @@
 // View User Details
 async function viewUser(userId) {
     try {
-        const response = await fetch(`get_user_details.php?user_id=${userId}`);
-        
-        // Log the raw response for debugging
+        const url = new URL('get_user_details.php', window.location.href).toString();
+        const response = await fetch(url + '?user_id=' + encodeURIComponent(userId), {
+            credentials: 'same-origin', // ensure cookies/session are sent
+            method: 'GET'
+        });
         const text = await response.text();
-        console.log('Raw server response:', text);
-        
-        // Try to parse as JSON
+        if (!response.ok) {
+            // Try to parse JSON error details, otherwise display raw text
+            let errObj = null;
+            try { errObj = JSON.parse(text); } catch (e) { }
+            const errMsg = errObj && errObj.message ? (errObj.message + (errObj.error ? '\nDetails: ' + errObj.error : '')) : `Server returned ${response.status} ${response.statusText}`;
+            console.error('API Error:', errMsg, text);
+            alert(errMsg);
+            return;
+        }
         let result;
         try {
             result = JSON.parse(text);
-        } catch (parseError) {
-            console.error('JSON Parse Error:', parseError);
+        } catch (e) {
             console.error('Invalid JSON response:', text);
-            alert('Server returned invalid JSON. Check console for details.');
+            alert('An error occurred while loading user details (invalid response from server). Check the console for details.');
             return;
         }
         
@@ -22,19 +29,28 @@ async function viewUser(userId) {
             displayUserDetails(result.data);
             document.getElementById('userModal').style.display = 'block';
         } else {
-            console.error('API Error:', result.message);
-            alert('Error: ' + (result.message || 'Unknown error occurred'));
+            let errMsg = 'Error: ' + (result.message || 'Unknown error');
+            if (result.error) {
+                errMsg += '\nDetails: ' + result.error;
+                console.error('Server error details:', result.error);
+            }
+            alert(errMsg);
         }
         
     } catch (error) {
-        console.error('Network Error:', error);
-        alert('Failed to connect to the server. Please try again.');
+        console.error('Network or server error:', error);
+        alert('Failed to connect to the server. Please ensure the web server (XAMPP) is running and try again.');
     }
 }
 
 // Display User Details in Modal
 function displayUserDetails(user) {
     const modalBody = document.getElementById('userModalBody');
+    if (!modalBody) {
+        console.error('displayUserDetails: #userModalBody not found in DOM. Ensure modal HTML is present.');
+        alert('UI Error: The user details modal is not available on this page. Please refresh or check console.');
+        return;
+    }
     
     // Calculate max value for chart
     const maxValue = Math.max(...user.chart_data.map(d => d.amount), 1);
@@ -73,7 +89,8 @@ function displayUserDetails(user) {
         `).join('')
         : '<div class="no-data">No withdrawal requests</div>';
     
-    modalBody.innerHTML = `
+    try {
+        modalBody.innerHTML = `
         <div class="user-info-grid">
             <div class="info-card">
                 <h4>Username</h4>
@@ -105,15 +122,15 @@ function displayUserDetails(user) {
         <div class="stats-grid">
             <div class="stat-box">
                 <h5>Current Balance</h5>
-                <p>$${parseFloat(user.balance).toFixed(2)}</p>
+                <p>$${parseFloat(user.balance || 0).toFixed(2)}</p>
             </div>
             <div class="stat-box">
                 <h5>Total Earned</h5>
-                <p>$${parseFloat(user.total_earned).toFixed(2)}</p>
+                <p>$${parseFloat(user.total_earned || 0).toFixed(2)}</p>
             </div>
             <div class="stat-box">
                 <h5>Today's Earnings</h5>
-                <p>$${parseFloat(user.today_earned).toFixed(2)}</p>
+                <p>$${parseFloat(user.today_earned || 0).toFixed(2)}</p>
             </div>
             <div class="stat-box">
                 <h5>Ads Today</h5>
@@ -137,7 +154,7 @@ function displayUserDetails(user) {
             </div>
             <div class="stat-box">
                 <h5>Completed Withdrawals</h5>
-                <p>$${parseFloat(user.withdrawal_stats.completed_amount).toFixed(2)}</p>
+                <p>$${parseFloat((user.withdrawal_stats && user.withdrawal_stats.completed_amount) || 0).toFixed(2)}</p>
             </div>
         </div>
         
@@ -158,11 +175,19 @@ function displayUserDetails(user) {
             ${recentWithdrawals}
         </div>
     `;
+    } catch (err) {
+        console.error('Error updating modal body innerHTML:', err);
+        alert('UI Error: Failed to display user details. See console for more info.');
+        return;
+    }
 }
 
 // Close User Modal
 function closeUserModal() {
-    document.getElementById('userModal').style.display = 'none';
+    const modal = document.getElementById('userModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 // Close modal when clicking outside
@@ -185,21 +210,35 @@ async function deleteUser(userId, username) {
     }
     
     try {
-        const response = await fetch('delete_user.php', {
+        const url = new URL('delete_user.php', window.location.href).toString();
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: 'user_id=' + userId
+            body: 'user_id=' + userId,
+            credentials: 'same-origin'
         });
-        
-        const result = await response.json();
+        const text = await response.text();
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            console.error('Invalid JSON response while deleting user:', text);
+            alert('An error occurred while deleting the user (invalid server response). Check server logs.');
+            return;
+        }
         
         if (result.success) {
             alert(result.message);
             location.reload();
         } else {
-            alert('Error: ' + result.message);
+            let errMsg = 'Error: ' + (result.message || 'Unknown error');
+            if (result.error) {
+                errMsg += '\nDetails: ' + result.error;
+                console.error('Server error details:', result.error);
+            }
+            alert(errMsg);
         }
         
     } catch (error) {
